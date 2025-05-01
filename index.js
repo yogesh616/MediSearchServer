@@ -30,6 +30,32 @@ app.use((req, res, next) => {
   next();
 });
 
+// API to Get 10 Medical Questions Per Page with Caching
+
+app.get('/medical-questions', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 10;
+
+    // ✅ Enforce maximum limit of 50
+    if (limit > 50) limit = 50;
+
+    const cacheKey = `medical_questions_${page}_${limit}`;
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) return res.json(cachedData);
+
+    const questions = await Medical.find({})
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    cache.set(cacheKey, questions, 600); // Cache for 10 minutes
+    res.json(questions);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 // ✅ API to Get Suggestions Based on Query with Caching
 app.get('/suggestion', async (req, res) => {
